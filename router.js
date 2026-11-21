@@ -205,7 +205,7 @@ function findBestRouteByMode(fromId, toId, options, mode) {
       continue;
     }
 
-    if (current.steps.length >= 24) continue;
+    if (current.steps.length >= 42) continue;
 
     const neighbors = adj[current.stationId] || [];
 
