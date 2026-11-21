@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#16a34a" />
+  <title>ToeiPassNavigation - 都営無料乗車証＆他社線 最安乗換案内</title>
+  <link rel="manifest" href="./manifest.json" />
+  <style>
+    :root {
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --primary: #16a34a;
+      --primary-dark: #15803d;
+      --primary-light: #dcfce7;
+      --accent: #0284c7;
+      --danger: #e11d48;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding-bottom: 48px;
+    }
+
+    /* スマホアプリ風のコンテナ */
+    .app-container {
+      max-width: 540px;
+      margin: 0 auto;
+      min-height: 100vh;
+    }
+
+    /* ヘッダー */
+    .app-header {
+      background: linear-gradient(135deg, #15803d 0%, #16a34a 100%);
+      color: #ffffff;
+      padding: 18px 16px 22px;
+      border-bottom-left-radius: 20px;
+      border-bottom-right-radius: 20px;
+      box-shadow: 0 4px 14px rgba(22, 163, 74, 0.22);
+    }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .app-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toei-logo-badge {
+      background: #ffffff;
+      color: #15803d;
+      font-weight: 900;
+      font-size: 0.85rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+
+    .app-subtitle {
+      font-size: 0.8rem;
+      opacity: 0.92;
+    }
+
+    /* 検索カード */
+    .search-card {
+      background: var(--card);
+      margin: -12px 14px 14px;
+      padding: 16px;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+      border: 1px solid var(--border);
+    }
+
+    .station-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .station-label {
+      width: 48px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+
+    .station-select {
+      flex: 1;
+      padding: 11px 12px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border-radius: 10px;
+      border: 1.5px solid var(--border);
+      background: #f8fafc;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .station-select:focus {
+      border-color: var(--primary);
+      background: #ffffff;
+    }
+
+    .swap-btn {
+      background: #f1f5f9;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 11px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text);
+      transition: background 0.15s;
+    }
+
+    .swap-btn:hover {
+      background: #e2e8f0;
+    }
+
+    /* 割引・条件設定パネル */
+    .options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--border);
+    }
+
+    .option-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      padding: 8px 10px;
+      border-radius: 10px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .option-toggle.active {
+      background: var(--primary-light);
+      border-color: #86efac;
+      color: #14532d;
+    }
+
+    .option-toggle input {
+      accent-color: var(--primary);
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
+    .search-btn {
+      width: 100%;
+      margin-top: 12px;
+      padding: 13px;
+      border: none;
+      border-radius: 12px;
+      background: var(--primary);
+      color: #ffffff;
+      font-size: 1rem;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 3px 10px rgba(22, 163, 74, 0.25);
+      transition: background 0.15s, transform 0.05s;
+    }
+
+    .search-btn:hover {
+      background: var(--primary-dark);
+    }
+
+    .search-btn:active {
+      transform: scale(0.99);
+    }
+
+    /* プリセットボタン */
+    .presets-section {
+      margin: 0 14px 14px;
+    }
+
+    .section-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 6px;
+      padding-left: 4px;
+    }
+
+    .presets-scroll {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .preset-chip {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .preset-chip:hover {
+      border-color: var(--primary);
+      background: var(--primary-light);
+      color: #14532d;
+    }
+
+    /* 検索結果カード */
+    .results-section {
+      margin: 0 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .route-card {
+      background: var(--card);
+      border-radius: 16px;
+      border: 1.5px solid var(--border);
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    }
+
+    .route-card.best-fare {
+      border-color: #4ade80;
+    }
+
+    .route-header {
+      padding: 14px 16px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .route-badges {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      color: #ffffff;
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+
+    .route-title {
+      font-size: 0.9rem;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .fare-box {
+      text-align: right;
+    }
+
+    .actual-fare {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: var(--primary-dark);
+    }
+
+    .actual-fare.zero-yen {
+      color: #15803d;
+      background: #dcfce7;
+      padding: 2px 10px;
+      border-radius: 8px;
+    }
+
+    .saved-tag {
+      display: block;
+      font-size: 0.72rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .saved-highlight {
+      color: #e11d48;
+      font-weight: 800;
+    }
+
+    .route-meta {
+      display: flex;
+      gap: 14px;
+      padding: 10px 16px;
+      background: #ffffff;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .route-meta strong {
+      color: var(--text);
+    }
+
+    /* タイムライン */
+    .timeline {
+      padding: 14px 16px;
+    }
+
+    .station-node {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 0.92rem;
+    }
+
+    .station-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--text);
+      border: 2px solid #ffffff;
+      box-shadow: 0 0 0 2px var(--text);
+      flex-shrink: 0;
+    }
+
+    .segment-bar {
+      margin: 4px 0 4px 5px;
+      padding: 10px 0 10px 16px;
+      border-left: 4px solid #cbd5e1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .segment-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .line-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.84rem;
+      font-weight: 800;
+    }
+
+    .line-code-badge {
+      display: inline-block;
+      color: #ffffff;
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+
+    .segment-sub {
+      font-size: 0.74rem;
+      color: var(--muted);
+    }
+
+    .segment-fare {
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .segment-price {
+      font-size: 0.88rem;
+      font-weight: 800;
+    }
+
+    .segment-price.free {
+      color: #15803d;
+      background: #dcfce7;
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+
+    .segment-note {
+      display: block;
+      font-size: 0.68rem;
+      color: var(--muted);
+    }
+
+    /* データ管理・運用フッター */
+    .admin-box {
+      margin: 20px 14px 0;
+      padding: 14px 16px;
+      background: var(--card);
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .admin-box h3 {
+      font-size: 0.85rem;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .admin-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .secondary-btn {
+      padding: 7px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #f8fafc;
+      font-size: 0.76rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--text);
+    }
+
+    .secondary-btn:hover {
+      background: #e2e8f0;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <header class="app-header">
+      <div class="header-top">
+        <div class="app-title">
+          <span class="toei-logo-badge">都営0円</span>
+          <span>ToeiPassNavigation</span>
+        </div>
+        <span style="font-size: 0.75rem; background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 999px;">
+          サーバーレス / 維持費0円
+        </span>
+      </div>
+      <p class="app-subtitle">
+        障害者手帳（都営交通無料乗車証）対応・他社線も含めた最安ルート検索
+      </p>
+    </header>
+
+    <section class="search-card">
+      <div class="station-row">
+        <span class="station-label">出発</span>
+        <select id="fromStation" class="station-select"></select>
+      </div>
+      <div class="station-row">
+        <span class="station-label">到着</span>
+        <select id="toStation" class="station-select"></select>
+        <button id="swapBtn" class="swap-btn" title="出発と到着を入れ替え">⇅ 入替</button>
+      </div>
+
+      <div class="options-grid">
+        <label class="option-toggle active" id="labelToeiPass">
+          <span>都営無料パス適用</span>
+          <input type="checkbox" id="useToeiPass" checked />
+        </label>
+        <label class="option-toggle" id="labelOtherDiscount">
+          <span>他社線も半額(障害割)</span>
+          <input type="checkbox" id="otherDisabilityDiscount" />
+        </label>
+        <label class="option-toggle active" id="labelToeiBus">
+          <span>都営バスも含める</span>
+          <input type="checkbox" id="includeToeiBus" checked />
+        </label>
+        <label class="option-toggle active" id="labelIcFare">
+          <span>IC運賃で計算</span>
+          <input type="checkbox" id="useIcFare" checked />
+        </label>
+      </div>
+
+      <button id="searchBtn" class="search-btn">最安・最適ルートを検索</button>
+    </section>
+
+    <section class="presets-section">
+      <div class="section-label">ワンタップ試算（他社線 vs 都営活用の比較例）</div>
+      <div class="presets-scroll" id="presetContainer"></div>
+    </section>
+
+    <main class="results-section" id="resultsContainer"></main>
+
+    <footer class="admin-box">
+      <h3>データ更新・Androidアプリ化（維持費0円運用）</h3>
+      <p>
+        駅・路線・運賃データは端末内の <code>data.js</code> で完結しているため、月額のAPI費用やサーバー代は一切かかりません。ダイヤ改正・運賃改定時はデータを差し替えるだけで更新できます。
+      </p>
+      <div class="admin-actions">
+        <button id="exportJsonBtn" class="secondary-btn">現在の路線データをJSON出力</button>
+        <label class="secondary-btn" style="display:inline-block;">
+          JSONデータを読み込んで手動更新
+          <input type="file" id="importJsonInput" accept=".json" style="display:none;" />
+        </label>
+      </div>
+    </footer>
+  </div>
+
+  <script src="./data.js"></script>
+  <script src="./router.js"></script>
+  <script>
+    const fromSelect = document.getElementById("fromStation");
+    const toSelect = document.getElementById("toStation");
+    const swapBtn = document.getElementById("swapBtn");
+    const searchBtn = document.getElementById("searchBtn");
+    const resultsContainer = document.getElementById("resultsContainer");
+    const presetContainer = document.getElementById("presetContainer");
+
+    const useToeiPassEl = document.getElementById("useToeiPass");
+    const otherDiscountEl = document.getElementById("otherDisabilityDiscount");
+    const includeToeiBusEl = document.getElementById("includeToeiBus");
+    const useIcFareEl = document.getElementById("useIcFare");
+
+    function getStationName(id) {
+      const st = STATIONS.find(s => s.id === id);
+      return st ? st.name : id;
+    }
+
+    // 駅セレクトボックスをエリア別に構築
+    function populateStationSelects() {
+      const areas = {};
+      for (const st of STATIONS) {
+        if (!areas[st.area]) areas[st.area] = [];
+        areas[st.area].push(st);
+      }
+
+      [fromSelect, toSelect].forEach(selectEl => {
+        selectEl.innerHTML = "";
+        for (const [areaName, list] of Object.entries(areas)) {
+          const optgroup = document.createElement("optgroup");
+          optgroup.label = areaName;
+          for (const st of list) {
+            const opt = document.createElement("option");
+            opt.value = st.id;
+            opt.textContent = st.name;
+            optgroup.appendChild(opt);
+          }
+          selectEl.appendChild(optgroup);
+        }
+      });
+
+      fromSelect.value = "shibuya";
+      toSelect.value = "asakusa";
+    }
+
+    // プリセットチップの描画
+    function renderPresets() {
+      presetContainer.innerHTML = "";
+      for (const p of PRESET_QUERIES) {
+        const btn = document.createElement("button");
+        btn.className = "preset-chip";
+        btn.textContent = p.label;
+        btn.title = p.note;
+        btn.addEventListener("click", () => {
+          fromSelect.value = p.from;
+          toSelect.value = p.to;
+          runSearch();
+        });
+        presetContainer.appendChild(btn);
+      }
+    }
+
+    // チェックボックスの見た目同期
+    function bindToggleStyle(checkbox, labelId) {
+      const label = document.getElementById(labelId);
+      const sync = () => {
+        if (checkbox.checked) label.classList.add("active");
+        else label.classList.remove("active");
+      };
+      checkbox.addEventListener("change", () => {
+        sync();
+        runSearch();
+      });
+      sync();
+    }
+
+    function runSearch() {
+      const fromId = fromSelect.value;
+      const toId = toSelect.value;
+
+      if (fromId === toId) {
+        resultsContainer.innerHTML = `
+          <div class="route-card" style="padding: 20px; text-align: center; color: var(--muted);">
+            出発駅と到着駅が同じです。別の駅を選択してください。
+          </div>
+        `;
+        return;
+      }
+
+      const options = {
+        useToeiPass: useToeiPassEl.checked,
+        otherDisabilityDiscount: otherDiscountEl.checked,
+        includeToeiBus: includeToeiBusEl.checked,
+        fareType: useIcFareEl.checked ? "ic" : "ticket"
+      };
+
+      const routes = searchRoutes(fromId, toId, options);
+      renderResults(routes, options);
+    }
+
+    function renderResults(routes, options) {
+      if (!routes || routes.length === 0) {
+        resultsContainer.innerHTML = `
+          <div class="route-card" style="padding: 20px; text-align: center; color: var(--muted);">
+            条件に合う経路が見つかりませんでした。
+          </div>
+        `;
+        return;
+      }
+
+      const minFare = Math.min(...routes.map(r => r.totalActualFare));
+
+      resultsContainer.innerHTML = routes.map(route => {
+        const isBestFare = route.totalActualFare === minFare;
+        const badgesHtml = route.badges.map(b =>
+          `<span class="badge" style="background:${b.color}">${b.text}</span>`
+        ).join("");
+
+        const savedHtml = route.savedAmount > 0
+          ? `<span class="saved-tag">通常 ${route.totalNormalFare}円 → <span class="saved-highlight">${route.savedAmount}円おトク</span></span>`
+          : `<span class="saved-tag">通常運賃 ${route.totalNormalFare}円</span>`;
+
+        // タイムライン生成
+        let timelineHtml = "";
+        route.segments.forEach((seg, idx) => {
+          if (idx === 0) {
+            timelineHtml += `
+              <div class="station-node">
+                <span class="station-dot" style="background:${seg.lineColor}; box-shadow: 0 0 0 2px ${seg.lineColor};"></span>
+                <span>${getStationName(seg.from)}</span>
+              </div>
+            `;
+          }
+
+          let fareDisplay = "";
+          if (seg.isThroughFare) {
+            fareDisplay = `<span class="segment-price ${seg.isToeiFree && options.useToeiPass ? 'free' : ''}">${seg.isToeiFree && options.useToeiPass ? '0円' : '通算'}</span>`;
+          } else {
+            fareDisplay = `<span class="segment-price ${seg.actualFare === 0 ? 'free' : ''}">${seg.actualFare}円</span>`;
+          }
+
+          timelineHtml += `
+            <div class="segment-bar" style="border-left-color: ${seg.lineColor};">
+              <div class="segment-info">
+                <div class="line-pill">
+                  <span class="line-code-badge" style="background:${seg.lineColor}">${seg.lineCode}</span>
+                  <span>${seg.lineName}</span>
+                </div>
+                <span class="segment-sub">${seg.operatorName} ・ 約${seg.minutes}分 (${seg.km}km)</span>
+              </div>
+              <div class="segment-fare">
+                ${fareDisplay}
+                <span class="segment-note">${seg.fareNote}</span>
+              </div>
+            </div>
+            <div class="station-node">
+              <span class="station-dot" style="background:${seg.lineColor}; box-shadow: 0 0 0 2px ${seg.lineColor};"></span>
+              <span>${getStationName(seg.to)}</span>
+            </div>
+          `;
+        });
+
+        return `
+          <article class="route-card ${isBestFare ? 'best-fare' : ''}">
+            <div class="route-header">
+              <div>
+                <div class="route-badges">${badgesHtml}</div>
+                <div class="route-title" style="margin-top:4px;">${route.title}</div>
+              </div>
+              <div class="fare-box">
+                <span class="actual-fare ${route.totalActualFare === 0 ? 'zero-yen' : ''}">
+                  支払 ${route.totalActualFare}円
+                </span>
+                ${savedHtml}
+              </div>
+            </div>
+            <div class="route-meta">
+              <span>所要 <strong>約${route.totalMinutes}分</strong>（乗車${route.rideMinutes}分）</span>
+              <span>乗換 <strong>${route.transferCount}回</strong></span>
+              <span>都営活用率 <strong>${route.toeiRatio}%</strong></span>
+            </div>
+            <div class="timeline">
+              ${timelineHtml}
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    // イベント登録
+    swapBtn.addEventListener("click", () => {
+      const temp = fromSelect.value;
+      fromSelect.value = toSelect.value;
+      toSelect.value = temp;
+      runSearch();
+    });
+
+    searchBtn.addEventListener("click", runSearch);
+    fromSelect.addEventListener("change", runSearch);
+    toSelect.addEventListener("change", runSearch);
+
+    bindToggleStyle(useToeiPassEl, "labelToeiPass");
+    bindToggleStyle(otherDiscountEl, "labelOtherDiscount");
+    bindToggleStyle(includeToeiBusEl, "labelToeiBus");
+    bindToggleStyle(useIcFareEl, "labelIcFare");
+
+    // JSONデータ書き出し・読み込み（手動更新の体験用）
+    document.getElementById("exportJsonBtn").addEventListener("click", () => {
+      const payload = {
+        updatedAt: new Date().toISOString(),
+        operators: OPERATORS,
+        lines: LINES,
+        stations: STATIONS,
+        edges: EDGES
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "toei-pass-transit-data.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById("importJsonInput").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const parsed = JSON.parse(ev.target.result);
+          if (parsed.stations && parsed.edges) {
+            STATIONS.length = 0;
+            STATIONS.push(...parsed.stations);
+            EDGES.length = 0;
+            EDGES.push(...parsed.edges);
+            populateStationSelects();
+            runSearch();
+            alert("路線・運賃データを手動更新しました！");
+          }
+        } catch (err) {
+          alert("JSONファイルの形式が正しくありません。");
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // 初期表示
+    populateStationSelects();
+    renderPresets();
+    runSearch();
+  </script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "name": "toei-pass-navigation",
+  "version": "1.0.0",
+  "description": "ToeiPassNavigation - 都営交通無料乗車証対応・他社線含めた最安乗換案内アプリ（PWA / Android対応）",
+  "scripts": {
+    "start": "npx --yes serve -l 3000 ."
+  }
+}
