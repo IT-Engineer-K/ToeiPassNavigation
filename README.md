@@ -33,3 +33,15 @@
 ```bash
 node scripts/update-data.js
 ```
+
+## Android アプリ版（`android/`）
+
+`android/` ディレクトリに Kotlin + Jetpack Compose (Material 3) で実装したネイティブ Android アプリを収録しています（AGP 8.10.0 / Gradle 8.11.1 / Kotlin 2.1.0 / `compileSdk & targetSdk 36` / `minSdk 26`）。
+
+- `android/app/src/main/assets/transit-data.json` を同梱し、完全オフラインで動作します。
+- ルーティングエンジンは Android 非依存の純粋 Kotlin パッケージ（`com.toeipass.navi.engine`）として実装しています。
+- ビルド・テスト：
+  ```bash
+  cd android
+  ./gradlew testDebugUnitTest assembleDebug
+  ```
