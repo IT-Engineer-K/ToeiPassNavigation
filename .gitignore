@@ -2,15 +2,3 @@
 .DS_Store
 Thumbs.db
 node_modules/
-
-# Android / Gradle
-android/local.properties
-android/.gradle/
-android/.idea/
-android/build/
-android/app/build/
-android/*.iml
-android/app/*.iml
-android/captures/
-android/.cxx/
-android/.externalNativeBuild/
