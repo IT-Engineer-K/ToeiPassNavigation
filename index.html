@@ -2,9 +2,11 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#15803d" />
+  <meta name="description" content="都営交通（都営地下鉄・日暮里・舎人ライナー・都電荒川線・都営バス）の無料乗車券に対応し、JR・東京メトロ・私鉄を含めた最安・最適ルートを検索できる乗換案内アプリです。" />
   <title>ToeiPassNavigation - 都営交通無料乗車券 対応 乗換案内</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%2315803d'/><text x='50' y='68' font-size='55' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'>都</text></svg>" />
   <link rel="manifest" href="./manifest.json" />
   <style>
     :root {
@@ -183,7 +185,8 @@
       border-bottom: none;
     }
 
-    .suggest-item:hover {
+    .suggest-item:hover,
+    .suggest-item.focused {
       background: var(--primary-light);
       color: #14532d;
     }
@@ -736,8 +739,8 @@
       <div class="time-row">
         <input type="time" id="timeInput" class="time-input" value="09:00" aria-label="時刻指定" />
         <div class="time-mode-group" role="group" aria-label="出発・到着指定">
-          <button type="button" id="depModeBtn" class="time-mode-btn active">出発</button>
-          <button type="button" id="arrModeBtn" class="time-mode-btn">到着</button>
+          <button type="button" id="depModeBtn" class="time-mode-btn active" aria-pressed="true">出発</button>
+          <button type="button" id="arrModeBtn" class="time-mode-btn" aria-pressed="false">到着</button>
         </div>
         <button type="button" id="nowTimeBtn" class="now-btn">現在時刻</button>
       </div>
@@ -757,7 +760,7 @@
         </label>
       </div>
 
-      <button id="searchBtn" class="search-btn">ルートを検索</button>
+      <button type="button" id="searchBtn" class="search-btn">ルートを検索</button>
     </section>
 
     <section class="presets-section">
@@ -770,17 +773,19 @@
     <main class="results-section" id="resultsContainer"></main>
 
     <footer class="admin-box">
-      <h3>路線・運賃データ管理（全200駅・377区間収録）</h3>
+      <h3 id="dataStatsTitle">路線・運賃データ管理</h3>
       <p>
         ダイヤ改正・運賃改定時はJSON出力・読み込みまたは <code>node scripts/update-data.js</code> で更新できます。
       </p>
       <div class="admin-actions">
-        <button id="exportJsonBtn" class="secondary-btn">路線データをJSON出力</button>
+        <button type="button" id="exportJsonBtn" class="secondary-btn">路線データをJSON出力</button>
         <label class="secondary-btn" style="display:inline-block;">
           JSONデータを読み込む
-          <input type="file" id="importJsonInput" accept=".json" style="display:none;" />
+          <input type="file" id="importJsonInput" accept=".json,application/json" style="display:none;" />
         </label>
+        <button type="button" id="resetDataBtn" class="secondary-btn" style="display:none;">初期データに戻す</button>
       </div>
+      <p id="dataStatusMsg" role="status" aria-live="polite" style="margin-top: 8px; font-size: 0.76rem; color: var(--primary); font-weight: 700; display: none;"></p>
       <p style="margin-top: 12px; font-size: 0.78rem;">
         <a href="./privacypolicy.html" style="color: var(--muted); text-decoration: underline;">プライバシーポリシー（Google Play / Web版）</a>
       </p>
@@ -806,16 +811,47 @@
     const routeTabsContainer = document.getElementById("routeTabsContainer");
     const resultsContainer = document.getElementById("resultsContainer");
     const presetContainer = document.getElementById("presetContainer");
+    const dataStatsTitle = document.getElementById("dataStatsTitle");
+    const resetDataBtn = document.getElementById("resetDataBtn");
+    const dataStatusMsg = document.getElementById("dataStatusMsg");
 
     const useToeiFreePassEl = document.getElementById("useToeiFreePass");
     const accessibleTransferEl = document.getElementById("accessibleTransfer");
     const includeToeiBusEl = document.getElementById("includeToeiBus");
 
+    // 初期データセットのスナップショット（リセット用）
+    const DEFAULT_DATASET = {
+      operators: JSON.parse(JSON.stringify(OPERATORS)),
+      lines: JSON.parse(JSON.stringify(LINES)),
+      stations: JSON.parse(JSON.stringify(STATIONS)),
+      edges: JSON.parse(JSON.stringify(EDGES))
+    };
+
     let selectedFromId = "musashi_koganei";
     let selectedToId = "roppongi";
     let timeMode = "departure";
     let currentRoutes = [];
+    let currentOptions = null;
     let activeRouteIndex = 0;
+
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function showDataStatus(message, isError = false) {
+      dataStatusMsg.textContent = message;
+      dataStatusMsg.style.color = isError ? "#dc2626" : "var(--primary)";
+      dataStatusMsg.style.display = message ? "block" : "none";
+    }
+
+    function updateDataStatsTitle() {
+      dataStatsTitle.textContent = `路線・運賃データ管理（全${STATIONS.length}駅・${EDGES.length}区間収録）`;
+    }
 
     function getStationById(id) {
       return STATIONS.find(s => s.id === id) || null;
@@ -854,33 +890,54 @@
       );
     }
 
-    function setupAutocomplete(inputEl, suggestEl, clearBtn, onSelectCallback) {
+    function setupAutocomplete(inputEl, suggestEl, clearBtn, getSelectedId, onSelectCallback) {
+      let focusedIdx = -1;
+      let currentMatches = [];
+
+      function updateFocusHighlight() {
+        const items = suggestEl.querySelectorAll(".suggest-item[data-id]");
+        items.forEach((el, idx) => {
+          el.classList.toggle("focused", idx === focusedIdx);
+          if (idx === focusedIdx) {
+            el.scrollIntoView({ block: "nearest" });
+          }
+        });
+      }
+
+      function selectStation(st) {
+        if (!st) return;
+        inputEl.value = st.name;
+        suggestEl.classList.remove("open");
+        focusedIdx = -1;
+        onSelectCallback(st.id);
+        runSearch();
+      }
+
       function renderList(query) {
-        const matches = filterStations(query);
-        if (matches.length === 0) {
+        currentMatches = filterStations(query);
+        focusedIdx = -1;
+        if (currentMatches.length === 0) {
           suggestEl.innerHTML = `<div class="suggest-item" style="color:var(--muted); cursor:default;">該当する駅が見つかりません</div>`;
           suggestEl.classList.add("open");
           return;
         }
-        suggestEl.innerHTML = matches.map(st => `
-          <div class="suggest-item" role="option" data-id="${st.id}">
-            <span>${st.name}</span>
-            <span class="suggest-area">${st.area}</span>
+        suggestEl.innerHTML = currentMatches.map(st => `
+          <div class="suggest-item" role="option" data-id="${escapeHtml(st.id)}">
+            <span>${escapeHtml(st.name)}</span>
+            <span class="suggest-area">${escapeHtml(st.area || "")}</span>
           </div>
         `).join("");
         suggestEl.classList.add("open");
 
         suggestEl.querySelectorAll(".suggest-item[data-id]").forEach(item => {
           item.addEventListener("mousedown", (e) => {
+            // フォーカス移動による blur 先行を防ぐ（タッチスクロールは妨げない）
             e.preventDefault();
+          });
+          item.addEventListener("click", () => {
             const id = item.getAttribute("data-id");
             const st = getStationById(id);
-            if (st) {
-              inputEl.value = st.name;
-              suggestEl.classList.remove("open");
-              onSelectCallback(st.id);
-              runSearch();
-            }
+            selectStation(st);
           });
         });
       }
@@ -889,36 +946,56 @@
 
       inputEl.addEventListener("input", () => {
         renderList(inputEl.value);
-        const matches = filterStations(inputEl.value);
-        if (matches.length > 0) {
-          onSelectCallback(matches[0].id);
+        const exact = currentMatches.find(st => st.name === inputEl.value.trim());
+        if (exact) {
+          onSelectCallback(exact.id);
         }
       });
 
       inputEl.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
+        if (e.key === "ArrowDown") {
+          if (!suggestEl.classList.contains("open")) renderList(inputEl.value);
+          if (currentMatches.length > 0) {
+            e.preventDefault();
+            focusedIdx = (focusedIdx + 1) % currentMatches.length;
+            updateFocusHighlight();
+          }
+        } else if (e.key === "ArrowUp") {
+          if (currentMatches.length > 0) {
+            e.preventDefault();
+            focusedIdx = focusedIdx <= 0 ? currentMatches.length - 1 : focusedIdx - 1;
+            updateFocusHighlight();
+          }
+        } else if (e.key === "Enter") {
           e.preventDefault();
-          const matches = filterStations(inputEl.value);
-          if (matches.length > 0) {
-            inputEl.value = matches[0].name;
-            onSelectCallback(matches[0].id);
-            suggestEl.classList.remove("open");
-            runSearch();
+          const target = focusedIdx >= 0 ? currentMatches[focusedIdx] : currentMatches[0];
+          if (target) {
+            selectStation(target);
           }
         } else if (e.key === "Escape") {
           suggestEl.classList.remove("open");
+          focusedIdx = -1;
         }
       });
 
       inputEl.addEventListener("blur", () => {
         setTimeout(() => {
           suggestEl.classList.remove("open");
-          const matches = filterStations(inputEl.value);
-          if (matches.length > 0) {
-            inputEl.value = matches[0].name;
-            onSelectCallback(matches[0].id);
+          focusedIdx = -1;
+          const typed = inputEl.value.trim();
+          if (!typed) {
+            inputEl.value = getStationName(getSelectedId());
+            return;
           }
-        }, 150);
+          const matches = filterStations(typed);
+          if (matches.length > 0) {
+            const exact = matches.find(s => s.name === typed) || matches[0];
+            inputEl.value = exact.name;
+            onSelectCallback(exact.id);
+          } else {
+            inputEl.value = getStationName(getSelectedId());
+          }
+        }, 160);
       });
 
       clearBtn.addEventListener("click", () => {
@@ -937,6 +1014,7 @@
       presetContainer.innerHTML = "";
       for (const p of PRESET_QUERIES) {
         const btn = document.createElement("button");
+        btn.type = "button";
         btn.className = "preset-chip";
         btn.textContent = p.label;
         btn.addEventListener("click", () => {
@@ -963,13 +1041,19 @@
     }
 
     function runSearch() {
-      const fromMatches = filterStations(fromInput.value);
-      if (fromMatches.length > 0 && !STATIONS.some(s => s.id === selectedFromId && s.name === fromInput.value)) {
-        selectedFromId = fromMatches[0].id;
+      const fromTyped = fromInput.value.trim();
+      if (fromTyped) {
+        const fromMatches = filterStations(fromTyped);
+        if (fromMatches.length > 0 && !STATIONS.some(s => s.id === selectedFromId && s.name === fromTyped)) {
+          selectedFromId = (fromMatches.find(s => s.name === fromTyped) || fromMatches[0]).id;
+        }
       }
-      const toMatches = filterStations(toInput.value);
-      if (toMatches.length > 0 && !STATIONS.some(s => s.id === selectedToId && s.name === toInput.value)) {
-        selectedToId = toMatches[0].id;
+      const toTyped = toInput.value.trim();
+      if (toTyped) {
+        const toMatches = filterStations(toTyped);
+        if (toMatches.length > 0 && !STATIONS.some(s => s.id === selectedToId && s.name === toTyped)) {
+          selectedToId = (toMatches.find(s => s.name === toTyped) || toMatches[0]).id;
+        }
       }
 
       if (!selectedFromId || !selectedToId || selectedFromId === selectedToId) {
@@ -982,7 +1066,7 @@
         return;
       }
 
-      const options = {
+      currentOptions = {
         useToeiFreePass: useToeiFreePassEl.checked,
         accessibleTransfer: accessibleTransferEl.checked,
         includeToeiBus: includeToeiBusEl.checked,
@@ -991,10 +1075,10 @@
         baseTimeMinutes: getBaseTimeMinutes()
       };
 
-      currentRoutes = searchRoutes(selectedFromId, selectedToId, options);
+      currentRoutes = searchRoutes(selectedFromId, selectedToId, currentOptions);
       activeRouteIndex = 0;
       renderRouteTabs();
-      renderActiveRoute(options);
+      renderActiveRoute(currentOptions);
     }
 
     function renderRouteTabs() {
@@ -1005,11 +1089,12 @@
 
       routeTabsContainer.innerHTML = currentRoutes.map((route, idx) => {
         const badgesHtml = route.badges.map(b =>
-          `<span class="badge" style="background:${b.color}">${b.text}</span>`
+          `<span class="badge" style="background:${escapeHtml(b.color)}">${escapeHtml(b.text)}</span>`
         ).join("");
+        const isActive = idx === activeRouteIndex;
 
         return `
-          <button type="button" class="route-tab ${idx === activeRouteIndex ? 'active' : ''}" data-idx="${idx}">
+          <button type="button" class="route-tab ${isActive ? 'active' : ''}" data-idx="${idx}" aria-pressed="${isActive}">
             <div class="tab-top">
               <span class="tab-num">ルート${idx + 1}</span>
               <span class="tab-badges">${badgesHtml}</span>
@@ -1024,7 +1109,7 @@
         btn.addEventListener("click", () => {
           activeRouteIndex = Number(btn.getAttribute("data-idx"));
           renderRouteTabs();
-          renderActiveRoute({
+          renderActiveRoute(currentOptions || {
             useToeiFreePass: useToeiFreePassEl.checked,
             accessibleTransfer: accessibleTransferEl.checked
           });
@@ -1044,20 +1129,21 @@
 
       const route = currentRoutes[activeRouteIndex] || currentRoutes[0];
       const badgesHtml = route.badges.map(b =>
-        `<span class="badge" style="background:${b.color}">${b.text}</span>`
+        `<span class="badge" style="background:${escapeHtml(b.color)}">${escapeHtml(b.text)}</span>`
       ).join("");
 
       let timelineHtml = "";
       route.segments.forEach((seg, idx) => {
+        const safeLineColor = escapeHtml(seg.lineColor);
         if (idx === 0) {
           const bf = getStationBarrierFree(seg.from);
           timelineHtml += `
             <div class="station-node">
-              <span class="node-time">${seg.depTime}</span>
-              <span class="station-dot" style="background:${seg.lineColor}; box-shadow: 0 0 0 2px ${seg.lineColor};"></span>
+              <span class="node-time">${escapeHtml(seg.depTime)}</span>
+              <span class="station-dot" style="background:${safeLineColor}; box-shadow: 0 0 0 2px ${safeLineColor};"></span>
               <div class="node-body">
-                <div class="node-name">${getStationName(seg.from)}</div>
-                ${bf ? `<span class="node-barrier-free">🛗 ${bf}</span>` : ""}
+                <div class="node-name">${escapeHtml(getStationName(seg.from))}</div>
+                ${bf ? `<span class="node-barrier-free">🛗 ${escapeHtml(bf)}</span>` : ""}
               </div>
             </div>
           `;
@@ -1076,35 +1162,37 @@
           : `直行（1区間）`;
 
         const stopsListHtml = intermediateStops.length > 0
-          ? intermediateStops.map(s => `・${getStationName(s.id)}`).join("<br/>")
+          ? intermediateStops.map(s => `・${escapeHtml(getStationName(s.id))}`).join("<br/>")
           : "";
 
+        const toBf = getStationBarrierFree(seg.to);
+
         timelineHtml += `
-          <div class="segment-bar" style="border-left-color: ${seg.lineColor};">
+          <div class="segment-bar" style="border-left-color: ${safeLineColor};">
             <div class="segment-info">
               <div class="line-pill">
-                <span class="line-code-badge" style="background:${seg.lineColor}">${seg.lineCode}</span>
-                <span>${seg.lineName}</span>
+                <span class="line-code-badge" style="background:${safeLineColor}">${escapeHtml(seg.lineCode)}</span>
+                <span>${escapeHtml(seg.lineName)}</span>
               </div>
-              <span class="segment-sub">${seg.dirHint} ・ 乗車${seg.minutes}分 (${seg.km}km)</span>
+              <span class="segment-sub">${escapeHtml(seg.dirHint)} ・ 乗車${seg.minutes}分 (${seg.km}km)</span>
               ${intermediateStops.length > 0 ? `
-                <button type="button" class="stops-toggle-btn" onclick="this.nextElementSibling.classList.toggle('open')">
-                  ▼ ${stopsCountText}
+                <button type="button" class="stops-toggle-btn" aria-expanded="false" data-label="${escapeHtml(stopsCountText)}">
+                  ▼ ${escapeHtml(stopsCountText)}
                 </button>
                 <div class="stops-detail-box">${stopsListHtml}</div>
-              ` : `<span class="segment-sub">${stopsCountText}</span>`}
+              ` : `<span class="segment-sub">${escapeHtml(stopsCountText)}</span>`}
             </div>
             <div class="segment-fare">
               ${fareDisplay}
-              <span class="segment-note">${seg.fareLabel}</span>
+              <span class="segment-note">${escapeHtml(seg.fareLabel)}</span>
             </div>
           </div>
           <div class="station-node">
-            <span class="node-time">${seg.arrTime}</span>
-            <span class="station-dot" style="background:${seg.lineColor}; box-shadow: 0 0 0 2px ${seg.lineColor};"></span>
+            <span class="node-time">${escapeHtml(seg.arrTime)}</span>
+            <span class="station-dot" style="background:${safeLineColor}; box-shadow: 0 0 0 2px ${safeLineColor};"></span>
             <div class="node-body">
-              <div class="node-name">${getStationName(seg.to)}</div>
-              ${getStationBarrierFree(seg.to) ? `<span class="node-barrier-free">🛗 ${getStationBarrierFree(seg.to)}</span>` : ""}
+              <div class="node-name">${escapeHtml(getStationName(seg.to))}</div>
+              ${toBf ? `<span class="node-barrier-free">🛗 ${escapeHtml(toBf)}</span>` : ""}
               ${seg.transferWaitMinutes ? `<div class="segment-sub" style="margin-top:2px;">乗換・移動目安 ${seg.transferWaitMinutes}分</div>` : ""}
             </div>
           </div>
@@ -1115,12 +1203,12 @@
         <article class="route-card">
           <div class="route-header">
             <div>
-              <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+              <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px; flex-wrap:wrap;">
                 ${badgesHtml}
-                <span style="font-size:0.82rem; font-weight:800; color:var(--muted);">${route.label}</span>
+                <span style="font-size:0.82rem; font-weight:800; color:var(--muted);">${escapeHtml(route.label)}</span>
               </div>
               <div class="route-time-headline">
-                <span>${route.departTime}発 → ${route.arriveTime}着</span>
+                <span>${escapeHtml(route.departTime)}発 → ${escapeHtml(route.arriveTime)}着</span>
                 <span class="route-duration-pill">${route.totalMinutes}分</span>
               </div>
             </div>
@@ -1138,11 +1226,45 @@
           </div>
         </article>
       `;
+
+      resultsContainer.querySelectorAll(".stops-toggle-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const detailBox = btn.nextElementSibling;
+          const isOpen = detailBox.classList.toggle("open");
+          btn.setAttribute("aria-expanded", String(isOpen));
+          btn.textContent = `${isOpen ? "▲" : "▼"} ${btn.getAttribute("data-label")}`;
+        });
+      });
+    }
+
+    function applyDataset(data) {
+      if (data.operators && typeof data.operators === "object") {
+        Object.keys(OPERATORS).forEach(k => delete OPERATORS[k]);
+        Object.assign(OPERATORS, JSON.parse(JSON.stringify(data.operators)));
+      }
+      if (data.lines && typeof data.lines === "object") {
+        Object.keys(LINES).forEach(k => delete LINES[k]);
+        Object.assign(LINES, JSON.parse(JSON.stringify(data.lines)));
+      }
+      STATIONS.length = 0;
+      STATIONS.push(...JSON.parse(JSON.stringify(data.stations)));
+      EDGES.length = 0;
+      EDGES.push(...JSON.parse(JSON.stringify(data.edges)));
+
+      if (!getStationById(selectedFromId) && STATIONS.length > 0) {
+        selectedFromId = STATIONS[0].id;
+      }
+      if (!getStationById(selectedToId) && STATIONS.length > 1) {
+        selectedToId = STATIONS[1].id;
+      }
+      updateDataStatsTitle();
+      syncInputsFromState();
+      runSearch();
     }
 
     // イベント初期化
-    setupAutocomplete(fromInput, fromSuggest, clearFromBtn, (id) => { selectedFromId = id; });
-    setupAutocomplete(toInput, toSuggest, clearToBtn, (id) => { selectedToId = id; });
+    setupAutocomplete(fromInput, fromSuggest, clearFromBtn, () => selectedFromId, (id) => { selectedFromId = id; });
+    setupAutocomplete(toInput, toSuggest, clearToBtn, () => selectedToId, (id) => { selectedToId = id; });
 
     homeQuickBtn.addEventListener("click", () => {
       selectedFromId = "musashi_koganei";
@@ -1161,14 +1283,18 @@
     depModeBtn.addEventListener("click", () => {
       timeMode = "departure";
       depModeBtn.classList.add("active");
+      depModeBtn.setAttribute("aria-pressed", "true");
       arrModeBtn.classList.remove("active");
+      arrModeBtn.setAttribute("aria-pressed", "false");
       runSearch();
     });
 
     arrModeBtn.addEventListener("click", () => {
       timeMode = "arrival";
       arrModeBtn.classList.add("active");
+      arrModeBtn.setAttribute("aria-pressed", "true");
       depModeBtn.classList.remove("active");
+      depModeBtn.setAttribute("aria-pressed", "false");
       runSearch();
     });
 
@@ -1184,7 +1310,7 @@
     bindToggleStyle(accessibleTransferEl, "labelAccessible");
     bindToggleStyle(includeToeiBusEl, "labelToeiBus");
 
-    // JSON出力・読み込み
+    // JSON出力・読み込み・リセット
     document.getElementById("exportJsonBtn").addEventListener("click", () => {
       const payload = {
         updatedAt: new Date().toISOString(),
@@ -1200,32 +1326,39 @@
       a.download = "toei-pass-transit-data.json";
       a.click();
       URL.revokeObjectURL(url);
+      showDataStatus("路線・運賃データをJSON出力しました。");
     });
 
     document.getElementById("importJsonInput").addEventListener("change", (e) => {
       const file = e.target.files[0];
+      e.target.value = "";
       if (!file) return;
       const reader = new FileReader();
       reader.onload = (ev) => {
         try {
           const parsed = JSON.parse(ev.target.result);
-          if (parsed.stations && parsed.edges) {
-            STATIONS.length = 0;
-            STATIONS.push(...parsed.stations);
-            EDGES.length = 0;
-            EDGES.push(...parsed.edges);
-            syncInputsFromState();
-            runSearch();
-            alert("路線・運賃データを手動更新しました。");
+          if (Array.isArray(parsed.stations) && parsed.stations.length > 0 && Array.isArray(parsed.edges) && parsed.edges.length > 0) {
+            applyDataset(parsed);
+            resetDataBtn.style.display = "inline-block";
+            showDataStatus(`路線データを更新しました（全${STATIONS.length}駅・${EDGES.length}区間）。`);
+          } else {
+            showDataStatus("有効な駅・区間データが含まれていません。", true);
           }
         } catch (err) {
-          alert("JSONファイルの形式が正しくありません。");
+          showDataStatus("JSONファイルの形式が正しくありません。", true);
         }
       };
       reader.readAsText(file);
     });
 
+    resetDataBtn.addEventListener("click", () => {
+      applyDataset(DEFAULT_DATASET);
+      resetDataBtn.style.display = "none";
+      showDataStatus("初期の路線データに戻しました。");
+    });
+
     // 初期表示
+    updateDataStatsTitle();
     setNowTime();
     syncInputsFromState();
     renderPresets();

@@ -23,7 +23,7 @@ function calculateOperatorFare(operatorId, km, options) {
   if (operatorId === "TOEI_BUS" || operatorId === "KEIO_BUS") {
     return op.flatFare || 210;
   }
-  if (op.fareTable) {
+  if (op.fareTable && op.fareTable.length > 0) {
     const key = options.fareType === "ticket" ? "ticket" : "ic";
     const row = op.fareTable.find(r => km <= r.maxKm) || op.fareTable[op.fareTable.length - 1];
     return row[key];
@@ -50,6 +50,10 @@ function evaluatePath(steps, options) {
   const segments = [];
   for (const step of steps) {
     const lineObj = LINES[step.line];
+    if (!lineObj) return null;
+    const opObj = OPERATORS[lineObj.operator];
+    if (!opObj) return null;
+
     const lastSeg = segments[segments.length - 1];
     if (lastSeg && lastSeg.lineId === step.line) {
       lastSeg.to = step.to;
@@ -64,8 +68,8 @@ function evaluatePath(steps, options) {
         lineCode: lineObj.code,
         dirHint: lineObj.dirHint || "",
         operatorId: lineObj.operator,
-        operatorName: OPERATORS[lineObj.operator].name,
-        isToeiFree: OPERATORS[lineObj.operator].isFreeWithToeiPass,
+        operatorName: opObj.name,
+        isToeiFree: Boolean(opObj.isFreeWithToeiPass),
         from: step.from,
         to: step.to,
         minutes: step.minutes,
@@ -82,12 +86,13 @@ function evaluatePath(steps, options) {
   let i = 0;
   while (i < segments.length) {
     const currentOp = segments[i].operatorId;
+    const opObj = OPERATORS[currentOp];
     if (currentOp === "TOEI_BUS" || currentOp === "KEIO_BUS") {
       const fare = calculateOperatorFare(currentOp, segments[i].km, options);
       segments[i].fare = fare;
-      segments[i].fareLabel = (OPERATORS[currentOp].isFreeWithToeiPass && options.useToeiFreePass)
+      segments[i].fareLabel = (opObj.isFreeWithToeiPass && options.useToeiFreePass)
         ? "都営無料乗車券"
-        : `${OPERATORS[currentOp].name}`;
+        : `${opObj.name}`;
       totalFare += fare;
       i++;
     } else {
@@ -99,16 +104,16 @@ function evaluatePath(steps, options) {
       }
       const fare = calculateOperatorFare(currentOp, combinedKm, options);
       segments[i].fare = fare;
-      segments[i].fareLabel = (OPERATORS[currentOp].isFreeWithToeiPass && options.useToeiFreePass)
+      segments[i].fareLabel = (opObj.isFreeWithToeiPass && options.useToeiFreePass)
         ? "都営無料乗車券"
-        : `${OPERATORS[currentOp].name} (${combinedKm.toFixed(1)}km)`;
+        : `${opObj.name} (${combinedKm.toFixed(1)}km)`;
 
       for (let k = i + 1; k < j; k++) {
         segments[k].fare = 0;
         segments[k].isThroughFare = true;
-        segments[k].fareLabel = (OPERATORS[currentOp].isFreeWithToeiPass && options.useToeiFreePass)
+        segments[k].fareLabel = (opObj.isFreeWithToeiPass && options.useToeiFreePass)
           ? "都営無料乗車券"
-          : `${OPERATORS[currentOp].name} 乗継通算`;
+          : `${opObj.name} 乗継通算`;
       }
       totalFare += fare;
       i = j;
@@ -158,7 +163,9 @@ function buildAdjacencyList(includeToeiBus = true) {
     adj[st.id] = [];
   }
   for (const edge of EDGES) {
-    if (!includeToeiBus && LINES[edge.line].operator === "TOEI_BUS") {
+    const lineObj = LINES[edge.line];
+    if (!lineObj) continue;
+    if (!includeToeiBus && lineObj.operator === "TOEI_BUS") {
       continue;
     }
     if (adj[edge.from] && adj[edge.to]) {
@@ -170,31 +177,78 @@ function buildAdjacencyList(includeToeiBus = true) {
 }
 
 /**
+ * 探索高速化用の軽量二分ヒープ（最小スコア優先）
+ */
+class MinHeap {
+  constructor() {
+    this.items = [];
+  }
+  get length() {
+    return this.items.length;
+  }
+  push(item) {
+    const items = this.items;
+    items.push(item);
+    let idx = items.length - 1;
+    while (idx > 0) {
+      const parent = (idx - 1) >> 1;
+      if (items[parent].score <= items[idx].score) break;
+      const tmp = items[parent];
+      items[parent] = items[idx];
+      items[idx] = tmp;
+      idx = parent;
+    }
+  }
+  pop() {
+    const items = this.items;
+    if (items.length === 0) return null;
+    const top = items[0];
+    const last = items.pop();
+    if (items.length > 0) {
+      items[0] = last;
+      let idx = 0;
+      const len = items.length;
+      while (true) {
+        const left = (idx << 1) + 1;
+        const right = left + 1;
+        let smallest = idx;
+        if (left < len && items[left].score < items[smallest].score) smallest = left;
+        if (right < len && items[right].score < items[smallest].score) smallest = right;
+        if (smallest === idx) break;
+        const tmp = items[idx];
+        items[idx] = items[smallest];
+        items[smallest] = tmp;
+        idx = smallest;
+      }
+    }
+    return top;
+  }
+}
+
+/**
  * モード別のダイクストラ探索
  * - "cheapest" (安): 支払額最小
  * - "fastest" (早): 所要時間最短
  * - "easiest" (楽): 乗換回数最小・バリアフリー優先
  * - "balanced": 時間と料金のバランス
  */
-function findBestRouteByMode(fromId, toId, options, mode) {
-  const adj = buildAdjacencyList(options.includeToeiBus);
-
-  const queue = [{
+function findBestRouteByMode(fromId, toId, options, mode, adj) {
+  const heap = new MinHeap();
+  heap.push({
     stationId: fromId,
     steps: [],
     visited: new Set([fromId]),
     score: 0
-  }];
+  });
 
-  const bestScoreAtState = {};
+  const bestScoreAtState = Object.create(null);
   let bestResult = null;
   let bestFinalScore = Infinity;
 
-  while (queue.length > 0) {
-    queue.sort((a, b) => a.score - b.score);
-    const current = queue.shift();
+  while (heap.length > 0) {
+    const current = heap.pop();
 
-    if (current.score >= bestFinalScore) continue;
+    if (current.score >= bestFinalScore) break;
 
     if (current.stationId === toId) {
       const evaluated = evaluatePath(current.steps, options);
@@ -221,6 +275,8 @@ function findBestRouteByMode(fromId, toId, options, mode) {
       }];
 
       const evaluated = evaluatePath(nextSteps, options);
+      if (!evaluated) continue;
+
       let score = 0;
       if (mode === "cheapest") {
         score = evaluated.totalFare * 1000 + evaluated.totalMinutes * 10 + evaluated.transferCount * 20;
@@ -232,6 +288,8 @@ function findBestRouteByMode(fromId, toId, options, mode) {
         score = evaluated.totalFare + evaluated.totalMinutes * 10 + evaluated.transferCount * 45;
       }
 
+      if (score >= bestFinalScore) continue;
+
       const stateKey = `${edge.to}__${edge.line}`;
       if (bestScoreAtState[stateKey] !== undefined && bestScoreAtState[stateKey] <= score) {
         continue;
@@ -241,7 +299,7 @@ function findBestRouteByMode(fromId, toId, options, mode) {
       const nextVisited = new Set(current.visited);
       nextVisited.add(edge.to);
 
-      queue.push({
+      heap.push({
         stationId: edge.to,
         steps: nextSteps,
         visited: nextVisited,
@@ -256,6 +314,8 @@ function findBestRouteByMode(fromId, toId, options, mode) {
 function searchRoutes(fromId, toId, options) {
   if (!fromId || !toId || fromId === toId) return [];
 
+  const adj = buildAdjacencyList(options.includeToeiBus);
+
   const modes = [
     { key: "cheapest", badge: "安", badgeBg: "#16a34a", label: "最安（都営無料区間を優先）" },
     { key: "fastest", badge: "早", badgeBg: "#ea580c", label: "最速（所要時間を優先）" },
@@ -266,7 +326,7 @@ function searchRoutes(fromId, toId, options) {
   const results = [];
 
   for (const m of modes) {
-    const route = findBestRouteByMode(fromId, toId, options, m.key);
+    const route = findBestRouteByMode(fromId, toId, options, m.key, adj);
     if (!route) continue;
 
     const signature = route.segments.map(s => `${s.lineId}:${s.from}->${s.to}`).join("|");
