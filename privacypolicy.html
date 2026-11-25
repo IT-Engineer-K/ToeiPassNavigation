@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#15803d" />
+  <title>プライバシーポリシー｜都営パスナビ (ToeiPassNavi)</title>
+  <meta name="description" content="Androidアプリ「都営パスナビ（ToeiPassNavi）」およびWeb版「ToeiPassNavigation」のプライバシーポリシーです。" />
+  <style>
+    :root {
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --border: #cbd5e1;
+      --primary: #15803d;
+      --primary-dark: #14532d;
+      --primary-light: #dcfce7;
+      --accent: #0284c7;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      font-size: 16px;
+      line-height: 1.8;
+      padding-bottom: 56px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .wrap {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    .app-header {
+      background: linear-gradient(135deg, #14532d 0%, #15803d 100%);
+      color: #ffffff;
+      padding: 20px 20px 28px;
+      border-bottom-left-radius: 18px;
+      border-bottom-right-radius: 18px;
+      box-shadow: 0 3px 12px rgba(21, 128, 61, 0.2);
+      margin-bottom: 20px;
+    }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .app-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      opacity: 0.95;
+    }
+
+    .toei-badge {
+      background: #ffffff;
+      color: var(--primary-dark);
+      font-weight: 900;
+      font-size: 0.76rem;
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+
+    .back-link {
+      color: #ffffff;
+      text-decoration: none;
+      font-size: 0.84rem;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.16);
+      padding: 6px 12px;
+      border-radius: 8px;
+      transition: background 0.15s ease;
+    }
+
+    .back-link:hover {
+      background: rgba(255, 255, 255, 0.28);
+    }
+
+    .app-header h1 {
+      font-size: 1.65rem;
+      font-weight: 800;
+      line-height: 1.35;
+      margin-bottom: 8px;
+    }
+
+    .header-lead {
+      font-size: 0.92rem;
+      opacity: 0.94;
+      line-height: 1.65;
+    }
+
+    .content {
+      padding: 0 12px;
+    }
+
+    .summary-banner {
+      background: var(--primary-light);
+      border: 1px solid #86efac;
+      color: var(--primary-dark);
+      border-radius: 14px;
+      padding: 16px 18px;
+      margin-bottom: 18px;
+      font-size: 0.94rem;
+      line-height: 1.7;
+    }
+
+    .summary-banner strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 0.98rem;
+    }
+
+    section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 22px 20px;
+      margin-bottom: 14px;
+      box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+    }
+
+    h2 {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      font-size: 1.08rem;
+      font-weight: 800;
+      margin-bottom: 10px;
+      line-height: 1.45;
+      color: var(--text);
+    }
+
+    h2 .num {
+      color: var(--primary);
+      font-size: 0.88rem;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      background: var(--primary-light);
+      padding: 2px 8px;
+      border-radius: 6px;
+      flex-shrink: 0;
+    }
+
+    p {
+      font-size: 0.94rem;
+      margin-bottom: 10px;
+    }
+
+    p:last-child,
+    ul:last-child {
+      margin-bottom: 0;
+    }
+
+    ul {
+      margin: 6px 0 10px 1.3em;
+      font-size: 0.94rem;
+    }
+
+    li {
+      margin: 4px 0;
+    }
+
+    li::marker {
+      color: var(--primary);
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: 0.86rem;
+      line-height: 1.7;
+    }
+
+    a {
+      color: var(--accent);
+      text-underline-offset: 3px;
+      word-break: break-word;
+    }
+
+    a:hover {
+      color: #0369a1;
+    }
+
+    code {
+      background: #f1f5f9;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 0.88em;
+    }
+
+    dl {
+      margin: 0;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 8px 18px;
+      font-size: 0.94rem;
+    }
+
+    dt {
+      color: var(--primary-dark);
+      font-weight: 700;
+    }
+
+    dd {
+      margin: 0;
+    }
+
+    .lang-heading {
+      margin: 30px 0 14px;
+      padding-top: 22px;
+      border-top: 1px dashed var(--border);
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--muted);
+    }
+
+    footer {
+      margin-top: 28px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.8;
+      padding: 0 16px;
+    }
+
+    @media (max-width: 480px) {
+      body {
+        font-size: 15px;
+      }
+
+      .app-header {
+        padding: 18px 16px 24px;
+      }
+
+      .app-header h1 {
+        font-size: 1.42rem;
+      }
+
+      section {
+        padding: 18px 16px;
+      }
+
+      dl {
+        grid-template-columns: 1fr;
+        gap: 2px;
+      }
+
+      dd {
+        margin-bottom: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="app-header">
+      <div class="header-top">
+        <div class="app-brand">
+          <span class="toei-badge">都営無料乗車券</span>
+          <span>都営パスナビ / ToeiPassNavigation</span>
+        </div>
+        <a href="./index.html" class="back-link">‹ アプリ トップへ</a>
+      </div>
+      <h1>プライバシーポリシー</h1>
+      <p class="header-lead">
+        Androidアプリ「都営パスナビ（ToeiPassNavi / パッケージ名: <code>com.konju.toeipassnavi</code>）」およびWeb版「ToeiPassNavigation」（以下「本アプリ」）における利用者情報の取り扱いについて定めます。
+      </p>
+    </header>
+
+    <main class="content">
+      <div class="summary-banner">
+        <strong>本アプリの基本方針</strong>
+        本アプリは、端末内で完結する完全オフラインの乗換案内アプリです。個人情報・位置情報・検索履歴・端末識別子などの利用者情報を一切収集・保存・共有・外部送信しません。
+      </div>
+
+      <section>
+        <h2><span class="num">01</span>収集する情報について</h2>
+        <p>本アプリは、氏名・メールアドレス・位置情報・検索履歴・利用状況・広告ID・クラッシュログなどの個人情報および機密データを一切収集しません。</p>
+        <ul>
+          <li>アカウントの作成やログイン機能はありません。</li>
+          <li>出発駅・到着駅・時刻・検索条件などの入力内容は、端末内での経路探索と運賃計算にのみ使用され、外部へ送信されることはありません。</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2><span class="num">02</span>通信および端末権限について</h2>
+        <p>本アプリのAndroid版は、インターネット通信を行いません。また、インターネット権限・位置情報権限・ストレージ権限・カメラ・連絡先などの端末権限を一切要求しません。</p>
+        <p class="note">
+          路線・運賃データを手動更新するために、利用者が任意でJSONファイルを読み込む機能を利用した場合、Android標準のファイル選択画面（Storage Access Framework）から選ばれたファイルのみを端末内のメモリ上で一時的に読み込みます。ファイルの内容が外部に送信・共有されることはありません。
+        </p>
+      </section>
+
+      <section>
+        <h2><span class="num">03</span>広告・解析ツール・外部SDKについて</h2>
+        <p>本アプリは、広告配信SDK（Google AdMob等）、アクセス解析ツール（Firebase Analytics / Google Analytics等）、クラッシュレポート送信ツール、外部AI APIなどのサードパーティ製SDK・外部サービスを一切組み込んでいません。</p>
+        <ul>
+          <li><strong>Google Play ストアについて（Android版）：</strong>Android端末やGoogleアカウントの設定に応じて、Google LLC がアプリのダウンロード数やOSレベルの診断情報を処理する場合があります。詳細は <a href="https://policies.google.com/privacy?hl=ja" target="_blank" rel="noopener noreferrer">Google プライバシーポリシー</a> をご確認ください。</li>
+          <li><strong>ホスティングについて（Web版）：</strong>Web版（本ページを含む）は Vercel または GitHub Pages 上で公開されており、アクセス時にホスティング事業者によりIPアドレス等の標準的なアクセスログが処理される場合があります。詳細は <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer">Vercel Privacy Policy</a> および <a href="https://docs.github.com/ja/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener noreferrer">GitHub プライバシーステートメント</a> をご確認ください。</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2><span class="num">04</span>第三者提供について</h2>
+        <p>本アプリは利用者情報を収集していないため、第三者への提供・共有・販売を行うことはありません。</p>
+      </section>
+
+      <section>
+        <h2><span class="num">05</span>データの管理・保管・削除について</h2>
+        <p>本アプリは外部サーバー上に利用者データを一切保存せず、端末内にも個人情報を永続保存しません。</p>
+        <ul>
+          <li>入力した検索条件や任意で読み込んだJSONデータは端末内のメモリ上でのみ保持され、アプリ終了時・初期データへのリセット時・アンインストール時に自動的に消去されます。</li>
+          <li>アカウント登録機能が存在しないため、アカウント削除の手続きは不要です。</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2><span class="num">06</span>お子様のプライバシー</h2>
+        <p>本アプリは、13歳未満のお子様を含むすべての年齢層の利用者から個人情報を意図的に収集することはありません。</p>
+      </section>
+
+      <section>
+        <h2><span class="num">07</span>免責事項</h2>
+        <p>本アプリが提供する経路・所要時間・運賃情報は参考情報であり、ダイヤ改正・運賃改定・運行状況等により実際の運行内容や運賃と異なる場合があります。本アプリの利用によって生じた損害について、運営者は責任を負いかねます。</p>
+      </section>
+
+      <section>
+        <h2><span class="num">08</span>ポリシーの変更</h2>
+        <p>法令の改正や機能の追加・変更に応じて、本ポリシーを改定することがあります。重要な変更がある場合は、本ページまたは本アプリ内でお知らせします。</p>
+      </section>
+
+      <section>
+        <h2><span class="num">09</span>お問い合わせ</h2>
+        <dl>
+          <dt>対象アプリ</dt>
+          <dd>都営パスナビ / ToeiPassNavi（<code>com.konju.toeipassnavi</code>）<br />ToeiPassNavigation（Web版）</dd>
+          <dt>運営者</dt>
+          <dd>船原滉樹</dd>
+          <dt>メール</dt>
+          <dd><a href="mailto:funahkonju@gmail.com">funahkonju@gmail.com</a></dd>
+          <dt>GitHub</dt>
+          <dd><a href="https://github.com/IT-Engineer-K/ToeiPassNavigation/issues" target="_blank" rel="noopener noreferrer">GitHub Issues（ToeiPassNavigation）</a></dd>
+        </dl>
+      </section>
+
+      <div class="lang-heading">Privacy Policy (English)</div>
+
+      <section>
+        <h2><span class="num">EN</span>Summary &amp; Compliance</h2>
+        <p>
+          <strong>ToeiPassNavi / 都営パスナビ</strong> (Android package: <code>com.konju.toeipassnavi</code>) and <strong>ToeiPassNavigation</strong> (Web) do <strong>not</strong> access, collect, store, transmit, or share any personal or sensitive user data, including names, email addresses, location data, search history, device identifiers, or usage analytics.
+        </p>
+        <ul>
+          <li><strong>Offline &amp; No Permissions:</strong> The Android app operates completely offline without internet, location, storage, camera, or contacts permissions. Any JSON transit file voluntarily imported via the system file picker (Storage Access Framework) is processed only in temporary device memory and is never sent externally.</li>
+          <li><strong>No Third-Party SDKs:</strong> The app does not include advertising SDKs, analytics SDKs, crash reporting tools, or external AI APIs. Platform-level metrics on Google Play or web access logs on Vercel / GitHub Pages are governed by <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google's Privacy Policy</a>, the <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer">Vercel Privacy Policy</a>, and the <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener noreferrer">GitHub General Privacy Statement</a>, respectively.</li>
+          <li><strong>Data Retention &amp; Deletion:</strong> No user data is stored on servers or persisted locally. All in-memory state is cleared when the app closes, resets, or is uninstalled. No account creation is offered, so no account deletion workflow is required.</li>
+          <li><strong>Children's Privacy:</strong> The app does not knowingly collect personal information from children under 13 or any other age group.</li>
+          <li><strong>Contact:</strong> Developer: 船原滉樹 (IT-Engineer-K) / Email: <a href="mailto:funahkonju@gmail.com">funahkonju@gmail.com</a></li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      制定日：2026年11月25日<br />
+      最終更新日：2026年11月25日
+    </footer>
+  </div>
+</body>
+</html>
